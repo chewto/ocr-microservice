@@ -27,9 +27,11 @@ def ocr_endpoint():
     if testing:
       image = request.files.get('image')
       image = utility.convertFilestorage(image)
+      image = utility.preprocessing(image, 1080, filters='sharp')
     else:
       data = request.get_json()
       image = utility.convertB64(data.get('image'))
+      image = utility.preprocessing(image, 1080, filters='sharp')
 
     # temp_dir = '/temp'
     # os.makedirs(temp_dir, exist_ok=True)
@@ -46,22 +48,5 @@ def ocr_endpoint():
     return jsonify(text)
 
 
-# def read_text_from_image():
-
-#   # reqBody = request.get_json()
-
-#   imagen = request.files.get('image')
-
-#   data =  utility.convertFilestorage(imagen)
-
-#   ocr = PaddleOCR(use_textline_orientation=True, lang='en')
-#   result = ocr.predict(data)
-#   print(result)
-#   # for line in result:
-#   #   for box in line:
-#   #     print(box[1][0])  # Print recognized text
-
-#   return 'asdasd'
-
 if __name__ == '__main__':
-  app.run(debug=True, port=5000)
+  app.run(debug=True, host="0.0.0.0",port=4000)
