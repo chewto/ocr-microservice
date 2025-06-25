@@ -15,6 +15,11 @@ CORS(app, resources={
 }, supports_credentials=True)
 app.config['CORS_HEADER'] = 'Content-type'
 
+@app.route('/', methods=['GET'])
+def base():
+
+  return 'servicio activo'
+
 @app.route('/ocr', methods=['POST'])
 def ocr_endpoint():
 
