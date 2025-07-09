@@ -40,13 +40,20 @@ def ocr_endpoint():
 
     result = ocr.predict(image)
 
+    angle = 0
+
     text = []
 
     for data in result:
+
+      if 'doc_preprocessor_res' in data:
+        if 'angle' in data['doc_preprocessor_res']:
+          angle = data['doc_preprocessor_res']['angle']
+          print(angle)
       if 'rec_texts' in data:
         text = data['rec_texts']
-    return jsonify(text)
+    return jsonify({"ocr":text, "textAngle": angle})
 
 
 if __name__ == '__main__':
-  app.run(debug=True, host="0.0.0.0",port=4000)
+  app.run(debug=True, host="0.0.0.0",port=4500)
