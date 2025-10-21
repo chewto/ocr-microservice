@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from paddleocr import PaddleOCR
 import utility
+import time
 
 ocr = PaddleOCR(use_textline_orientation=True, lang='es')
 
@@ -22,36 +23,87 @@ def base():
 @app.route('/ocr', methods=['POST'])
 def ocr_endpoint():
 
-    testing = request.args.get('testing', 'false').lower() == 'true'
-    if testing:
-      image = request.files.get('image')
-      image = utility.convertFilestorage(image)
-      image = utility.preprocessing(image, 1080, filters='sharp')
-    else:
-      data = request.get_json()
-      image = utility.convertB64(data.get('image'))
-      image = utility.preprocessing(image, 1080, filters='sharp')
+    # --- Bloque Try/Except GENERAL ---
+    # Captura cualquier error inesperado (mala request, error de preprocesamiento, etc.)
+    try:
+        testing = request.args.get('testing', 'false').lower() == 'true'
+        image = None # Inicializar
 
-    # temp_dir = '/temp'
-    # os.makedirs(temp_dir, exist_ok=True)
-    # image_path = os.path.join(temp_dir, image.filename)
-    # image.save(image_path)
+        if testing:
+            image_file = request.files.get('image')
+            if not image_file:
+                return jsonify({"error": "No image file provided in 'image' form-data."}), 400
+            
+            image = utility.convertFilestorage(image_file)
+            image = utility.preprocessing(image, 1080, filters='sharp')
+        else:
+            data = request.get_json()
+            if not data or 'image' not in data:
+                return jsonify({"error": "No 'image' key found in JSON payload."}), 400
 
-    result = ocr.predict(image)
+            b64_image = data.get('image')
+            if not b64_image:
+                return jsonify({"error": "Image data (base64) is missing."}), 400
+                
+            image = utility.convertB64(b64_image)
+            image = utility.preprocessing(image, 1080, filters='sharp')
 
-    angle = 0
+        if image is None:
+            return jsonify({"error": "Image processing or conversion failed."}), 400
 
-    text = []
+        
+        # --- Bloque Try/Except ESPECÍFICO (El que tú escribiste) ---
+        # Intenta solo la predicción de OCR, que es la línea propensa a fallar.
+        try:
+            # Esta es la línea que está fallando
+            result = ocr.predict(image) 
 
-    for data in result:
+        except RuntimeError as e:
+            # 1. Imprime el error en el log
+            print(f"Error de PaddleOCR: {e}")
 
-      if 'doc_preprocessor_res' in data:
-        if 'angle' in data['doc_preprocessor_res']:
-          angle = data['doc_preprocessor_res']['angle']
-          print(angle)
-      if 'rec_texts' in data:
-        text = data['rec_texts']
-    return jsonify({"ocr":text, "textAngle": angle})
+            # 2. (Opcional pero recomendado) Guarda la imagen problemática para analizarla
+            # Asumiendo que 'image' es un objeto de imagen de PIL o similar
+            try:
+                timestamp = int(time.time())
+                # Asegúrate de que este directorio '/usr/src/app/' exista y tengas permisos
+                save_path = f"/imagenes_ocr/problematic_image_{timestamp}.png"
+                image.save(save_path)
+                print(f"Imagen problemática guardada como {save_path}")
+            except Exception as save_e:
+                print(f"No se pudo guardar la imagen problemática: {save_e}")
+
+            # 3. Devuelve un error JSON claro al cliente
+            # (Tu código original devolvía un dict, lo he envuelto en jsonify)
+            return jsonify({"error": "Error al procesar la imagen con OCR.", "details": str(e)}), 500
+        
+        # --- Procesamiento del resultado (si el try/except específico NO falló) ---
+        
+        angle = 0
+        text = []
+
+        for data in result:
+            if 'doc_preprocessor_res' in data:
+                if 'angle' in data['doc_preprocessor_res']:
+                    angle = data['doc_preprocessor_res']['angle']
+                    print(angle)
+            if 'rec_texts' in data:
+                text = data['rec_texts']
+        
+        # Respuesta exitosa
+        return jsonify({"ocr": text, "textAngle": angle})
+
+    # --- Captura del Try/Except GENERAL ---
+    except Exception as e:
+        # Captura cualquier otro error (ej. JSON mal formado, error en utility.convertB64, etc.)
+        print(f"Error inesperado en /ocr endpoint: {e}")
+        # import traceback
+        # print(traceback.format_exc()) # Descomenta para más detalles
+        
+        return jsonify({
+            "error": "Ocurrió un error interno general.",
+            "details": str(e)
+        }), 500
 
 @app.route('/yolo-ocr', methods=['POST'])
 def yoloOCR():
@@ -130,4 +182,4 @@ def rotate():
     return jsonify({"ocr":text, "textAngle": angle})
 
 if __name__ == '__main__':
-  app.run(debug=True, host="0.0.0.0",port=4500)
+  app.run(debug=True, host="0.0.0.0",port=4000)

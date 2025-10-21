@@ -61,7 +61,7 @@ openpyxl==3.1.5
 opt-einsum==3.3.0
 orjson==3.10.18
 packaging==24.2
-paddleocr @ git+https://github.com/PaddlePaddle/PaddleOCR.git@4602329be9432db4328f28a3e16a04a9eb8e823e
+paddleocr==3.0.2
 paddlepaddle==3.0.0
 paddlex==3.0.2
 pandas==2.3.0
