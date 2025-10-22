@@ -17,5 +17,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+CMD ["gunicorn", "-w", "4", "-k", "gevent", "--bind", "0.0.0.0:4000", "main:app"]
 
-CMD [ "python", "./main.py" ]
